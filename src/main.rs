@@ -44,13 +44,6 @@ impl Point {
     }
 }
 
-impl Default for Point {
-    #[inline]
-    fn default() -> Self {
-        DEFAULT_POINT
-    }
-}
-
 impl fmt::Display for Point {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
