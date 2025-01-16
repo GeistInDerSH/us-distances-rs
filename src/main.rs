@@ -183,10 +183,6 @@ fn main() {
             })
         })
         .collect::<Vec<_>>();
-
-    for thread in threads {
-        thread.join().unwrap();
-    }
     drop(shared_sender);
 
     let farthest = receiver
@@ -194,4 +190,8 @@ fn main() {
         .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Equal))
         .unwrap();
     println!("{farthest}");
+
+    for thread in threads {
+        thread.join().unwrap();
+    }
 }
