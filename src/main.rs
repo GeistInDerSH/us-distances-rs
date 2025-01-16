@@ -1,5 +1,3 @@
-extern crate core;
-
 use std::cmp;
 use std::io::{prelude::*, BufReader};
 use std::ops::Div;
