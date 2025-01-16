@@ -32,8 +32,7 @@ impl Point {
         let b = (other.lng - self.lng).to_radians().div(2.0).sin().powi(2);
         let cos = self.lat.to_radians().cos() * other.lat.to_radians().cos() * b;
         let c = cos + a;
-        let c_inv = 1.0 - c;
-        let d = c.sqrt().atan2(c_inv.sqrt());
+        let d = c.sqrt().asin();
         DIAMETER_KM * d
     }
 }
