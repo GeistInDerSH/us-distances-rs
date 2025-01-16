@@ -1,6 +1,5 @@
 extern crate core;
 
-// use rayon::prelude::*;
 use std::cmp;
 use std::io::{prelude::*, BufReader};
 use std::ops::Div;
@@ -21,12 +20,12 @@ struct Point {
 }
 
 impl Point {
-    #[inline(always)]
+    #[inline]
     fn new(lat: f32, lng: f32) -> Self {
         Self { lat, lng }
     }
 
-    #[inline(always)]
+    #[inline]
     fn antipode(&self) -> Point {
         Point {
             lat: self.lat * -1.0,
@@ -46,14 +45,14 @@ impl Point {
 }
 
 impl Default for Point {
-    #[inline(always)]
+    #[inline]
     fn default() -> Self {
         DEFAULT_POINT
     }
 }
 
 impl fmt::Display for Point {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({:0.2}, {:0.2})", self.lat, self.lng)
     }
@@ -87,19 +86,19 @@ struct Farthest {
 }
 
 impl Farthest {
-    #[inline(always)]
+    #[inline]
     fn distance_km(&self) -> f32 {
         self.distance
     }
 
-    #[inline(always)]
+    #[inline]
     fn distance_mi(&self) -> f32 {
         self.distance * KM_TO_MILE_RATIO
     }
 }
 
 impl Default for Farthest {
-    #[inline(always)]
+    #[inline]
     fn default() -> Self {
         Self {
             opposite: DEFAULT_POINT,
