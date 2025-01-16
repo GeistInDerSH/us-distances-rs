@@ -2,7 +2,9 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::channel;
 use std::sync::{atomic, Arc};
 use std::{cmp, thread};
-use usdist::{min_distance_for_point, try_load, Farthest, GROUP_SIZE};
+use usdist::{min_distance_for_point, try_load, Farthest};
+
+const GROUP_SIZE: usize = 128;
 
 fn main() {
     let points = try_load("points.txt").expect("Failed to load points from the file");

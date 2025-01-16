@@ -5,7 +5,6 @@ use std::ops::Div;
 
 const DIAMETER_KM: f32 = 12_742.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
-pub const GROUP_SIZE: usize = 128;
 const DEFAULT_POINT: Point = Point { lat: 0.0, lng: 0.0 };
 
 #[derive(Clone, PartialEq, PartialOrd)]
