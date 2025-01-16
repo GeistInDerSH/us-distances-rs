@@ -171,9 +171,10 @@ fn main() {
                 if start > number_of_points {
                     return;
                 }
-                let end = (start + GROUP_SIZE).min(number_of_points);
-                let point = all_points[start..end]
+                let point = all_points
                     .iter()
+                    .skip(start)
+                    .take(GROUP_SIZE)
                     .map(|point| min_distance_for_point(point, &all_points))
                     .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Less))
                     .unwrap_or(Farthest::default());
