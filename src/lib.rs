@@ -64,6 +64,16 @@ impl TryFrom<String> for Point {
     }
 }
 
+pub fn try_load(file_name: &str) -> std::io::Result<Vec<Point>> {
+    let fp = std::fs::File::open(file_name)?;
+    let reader = BufReader::new(fp);
+    Ok(reader
+        .lines()
+        .map(|line| line.unwrap())
+        .map(|line| Point::try_from(line).unwrap())
+        .collect::<_>())
+}
+
 #[derive(PartialEq)]
 pub struct Farthest {
     opposite: Point,
@@ -111,16 +121,6 @@ impl PartialOrd for Farthest {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
         self.distance.partial_cmp(&other.distance)
     }
-}
-
-pub fn try_load(file_name: &str) -> std::io::Result<Vec<Point>> {
-    let fp = std::fs::File::open(file_name)?;
-    let reader = BufReader::new(fp);
-    Ok(reader
-        .lines()
-        .map(|line| line.unwrap())
-        .map(|line| Point::try_from(line).unwrap())
-        .collect::<_>())
 }
 
 pub fn min_distance_for_point(point: &Point, all_points: &[Point]) -> Farthest {
