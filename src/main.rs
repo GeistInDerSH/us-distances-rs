@@ -4,7 +4,7 @@ use std::sync::{atomic, Arc};
 use std::{cmp, thread};
 use usdist::{try_load, Farthest, Points};
 
-const GROUP_SIZE: usize = 128;
+const GROUP_SIZE: usize = 8;
 
 fn main() {
     let points = try_load("points.txt").expect("Failed to load points from the file");

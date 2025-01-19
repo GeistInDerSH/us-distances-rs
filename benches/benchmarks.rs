@@ -9,7 +9,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| points[0].haversine_distance(&points[1024]))
     });
     c.bench_function("farthest_point_with_offset", |b| {
-        b.iter(|| points.farthest_point_with_offset(64, 128))
+        b.iter(|| points.farthest_point_with_offset(64, 8))
     });
     c.bench_function("try_load", |b| b.iter(|| try_load("points.txt")));
 }
