@@ -121,14 +121,17 @@ impl Points {
         Self(points)
     }
 
+    #[inline]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
+    #[inline]
     pub fn get(&self, index: usize) -> Option<&Point> {
         self.0.get(index)
     }
@@ -156,6 +159,7 @@ impl Points {
 impl ops::Index<usize> for Points {
     type Output = Point;
 
+    #[inline]
     fn index(&self, index: usize) -> &Self::Output {
         self.0.index(index)
     }
