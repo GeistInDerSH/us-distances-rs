@@ -143,29 +143,23 @@ impl Points {
         self.0.get(index)
     }
 
-    pub fn min_distance_for_point(&self, point: &Point) -> Farthest {
-        let opposite = point.antipode();
-        let (closest, distance) = self
-            .0
-            .iter()
-            .map(|point| (point, opposite.haversine_distance(point)))
-            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Equal))
-            .unwrap_or((&DEFAULT_POINT, 0.0));
-        Farthest {
-            opposite,
-            distance,
-            closest: closest.clone(),
-        }
-    }
-
     pub fn farthest_point_with_offset(&self, start: usize, count: usize) -> Farthest {
-        self.0
-            .iter()
-            .skip(start)
-            .take(count)
-            .map(|point| self.min_distance_for_point(point))
-            .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Less))
-            .unwrap_or(Farthest::default())
+        let mut farthest = Farthest::default();
+        for current_point in self.0.iter().skip(start).take(count) {
+            let opposite = current_point.antipode();
+            let (closest, distance) = self
+                .0
+                .iter()
+                .map(|point| (point, opposite.haversine_distance(point)))
+                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Equal))
+                .unwrap_or((&DEFAULT_POINT, 0.0));
+            if distance > farthest.distance {
+                farthest.distance = distance;
+                farthest.opposite = opposite;
+                farthest.closest = closest.clone();
+            }
+        }
+        farthest
     }
 }
 
