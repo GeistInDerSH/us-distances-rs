@@ -7,15 +7,17 @@ use usdist::{try_load_points, Farthest};
 const GROUP_SIZE: usize = 8;
 
 fn main() {
-    let points = try_load_points("points.txt").expect("Failed to load points from the file");
-    let all_points = Arc::new(points);
+    let all_points =
+        Arc::new(try_load_points("points.txt").expect("Failed to load points from the file"));
     let number_of_points = all_points.len();
 
     let (sender, receiver) = channel::<Farthest>();
     let shared_sender = Arc::new(sender);
 
     let read_index = Arc::new(AtomicUsize::new(0));
-    let cores = thread::available_parallelism().unwrap().get();
+    let cores = thread::available_parallelism()
+        .expect("Unknown cores")
+        .get();
     let threads = (0..cores)
         .map(|_| {
             let chan = shared_sender.clone();
@@ -27,7 +29,8 @@ fn main() {
                     return;
                 }
                 let point = all_points.farthest_point_with_offset(start, GROUP_SIZE);
-                chan.send(point).unwrap();
+                chan.send(point)
+                    .expect("Failed to send farthest point; Channel closed?");
             })
         })
         .collect::<Vec<_>>();
@@ -36,10 +39,10 @@ fn main() {
     let farthest = receiver
         .into_iter()
         .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Equal))
-        .unwrap();
+        .expect("Failed to find the farthest point");
     println!("{farthest}");
 
     for thread in threads {
-        thread.join().unwrap();
+        thread.join().expect("Failed to join thread");
     }
 }

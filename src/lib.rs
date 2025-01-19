@@ -166,8 +166,8 @@ pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
     let reader = BufReader::new(fp);
     let points = reader
         .lines()
-        .map(|line| line.unwrap())
-        .map(|line| Point::try_from(line).unwrap())
+        .map(|line| line.expect("Failed to read line"))
+        .map(|line| Point::try_from(line).expect("Failed to parse point from line"))
         .collect::<_>();
     Ok(Points::new(points))
 }
