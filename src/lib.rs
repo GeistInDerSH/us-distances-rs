@@ -143,10 +143,6 @@ impl Points {
         self.0.get(index)
     }
 
-    pub fn index(&self, index: usize) -> &Point {
-        &self.0[index]
-    }
-
     pub fn min_distance_for_point(&self, point: &Point) -> Farthest {
         let opposite = point.antipode();
         let (closest, distance) = self
