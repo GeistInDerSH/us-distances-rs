@@ -64,16 +64,6 @@ impl TryFrom<String> for Point {
     }
 }
 
-pub fn try_load(file_name: &str) -> std::io::Result<Vec<Point>> {
-    let fp = std::fs::File::open(file_name)?;
-    let reader = BufReader::new(fp);
-    Ok(reader
-        .lines()
-        .map(|line| line.unwrap())
-        .map(|line| Point::try_from(line).unwrap())
-        .collect::<_>())
-}
-
 #[derive(PartialEq)]
 pub struct Farthest {
     opposite: Point,
@@ -169,4 +159,15 @@ impl ops::Index<usize> for Points {
     fn index(&self, index: usize) -> &Self::Output {
         self.0.index(index)
     }
+}
+
+pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
+    let fp = std::fs::File::open(file_name)?;
+    let reader = BufReader::new(fp);
+    let points = reader
+        .lines()
+        .map(|line| line.unwrap())
+        .map(|line| Point::try_from(line).unwrap())
+        .collect::<_>();
+    Ok(Points::new(points))
 }

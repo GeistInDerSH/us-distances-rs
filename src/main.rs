@@ -2,13 +2,13 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::mpsc::channel;
 use std::sync::{atomic, Arc};
 use std::{cmp, thread};
-use usdist::{try_load, Farthest, Points};
+use usdist::{try_load_points, Farthest};
 
 const GROUP_SIZE: usize = 8;
 
 fn main() {
-    let points = try_load("points.txt").expect("Failed to load points from the file");
-    let all_points = Arc::new(Points::new(points));
+    let points = try_load_points("points.txt").expect("Failed to load points from the file");
+    let all_points = Arc::new(points);
     let number_of_points = all_points.len();
 
     let (sender, receiver) = channel::<Farthest>();
