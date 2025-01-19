@@ -136,3 +136,13 @@ pub fn min_distance_for_point(point: &Point, all_points: &[Point]) -> Farthest {
         closest: closest.clone(),
     }
 }
+
+pub fn farthest_point_with_offset(points: &[Point], start: usize, count: usize) -> Farthest {
+    points
+        .iter()
+        .skip(start)
+        .take(count)
+        .map(|point| min_distance_for_point(point, points))
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Less))
+        .unwrap_or(Farthest::default())
+}
