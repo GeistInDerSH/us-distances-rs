@@ -1,7 +1,7 @@
-use std::cmp;
 use std::fmt;
 use std::io::{prelude::*, BufReader};
 use std::ops::Div;
+use std::{cmp, ops};
 
 const DIAMETER_KM: f32 = 12_742.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
@@ -123,26 +123,60 @@ impl PartialOrd for Farthest {
     }
 }
 
-pub fn min_distance_for_point(point: &Point, all_points: &[Point]) -> Farthest {
-    let opposite = point.antipode();
-    let (closest, distance) = all_points
-        .iter()
-        .map(|point| (point, opposite.haversine_distance(point)))
-        .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Equal))
-        .unwrap_or((&DEFAULT_POINT, 0.0));
-    Farthest {
-        opposite,
-        distance,
-        closest: closest.clone(),
+pub struct Points(Vec<Point>);
+
+impl Points {
+    #[inline]
+    pub fn new(points: Vec<Point>) -> Self {
+        Self(points)
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn get(&self, index: usize) -> Option<&Point> {
+        self.0.get(index)
+    }
+
+    pub fn index(&self, index: usize) -> &Point {
+        &self.0[index]
+    }
+
+    pub fn min_distance_for_point(&self, point: &Point) -> Farthest {
+        let opposite = point.antipode();
+        let (closest, distance) = self
+            .0
+            .iter()
+            .map(|point| (point, opposite.haversine_distance(point)))
+            .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Equal))
+            .unwrap_or((&DEFAULT_POINT, 0.0));
+        Farthest {
+            opposite,
+            distance,
+            closest: closest.clone(),
+        }
+    }
+
+    pub fn farthest_point_with_offset(&self, start: usize, count: usize) -> Farthest {
+        self.0
+            .iter()
+            .skip(start)
+            .take(count)
+            .map(|point| self.min_distance_for_point(point))
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Less))
+            .unwrap_or(Farthest::default())
     }
 }
 
-pub fn farthest_point_with_offset(points: &[Point], start: usize, count: usize) -> Farthest {
-    points
-        .iter()
-        .skip(start)
-        .take(count)
-        .map(|point| min_distance_for_point(point, points))
-        .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Less))
-        .unwrap_or(Farthest::default())
+impl ops::Index<usize> for Points {
+    type Output = Point;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.0.index(index)
+    }
 }
