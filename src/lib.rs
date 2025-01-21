@@ -28,9 +28,11 @@ impl Point {
     }
 
     pub fn haversine_distance(&self, other: &Point) -> f32 {
-        let a = (other.lat - self.lat).to_radians().div(2.0).sin().powi(2);
+        let s_lat_rad = self.lat.to_radians();
+        let o_lat_rad = other.lat.to_radians();
+        let a = (o_lat_rad - s_lat_rad).div(2.0).sin().powi(2);
         let b = (other.lng - self.lng).to_radians().div(2.0).sin().powi(2);
-        let cos = self.lat.to_radians().cos() * other.lat.to_radians().cos() * b;
+        let cos = s_lat_rad.cos() * o_lat_rad.cos() * b;
         let c = cos + a;
         let d = c.sqrt().asin();
         DIAMETER_KM * d
