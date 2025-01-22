@@ -14,6 +14,8 @@ fn main() {
     let (sender, receiver) = channel();
     let shared_sender = Arc::new(sender);
 
+    // Share a read offset, and read the GROUP_SIZE for each farthest point.
+    // This allows for work-stealing between threads
     let read_index = Arc::new(AtomicUsize::new(0));
     let cores = thread::available_parallelism()
         .expect("Unknown cores")
@@ -34,7 +36,7 @@ fn main() {
             })
         })
         .collect::<Vec<_>>();
-    drop(shared_sender);
+    drop(shared_sender); // Drop the parent sender channel
 
     let farthest = receiver
         .into_iter()
@@ -42,6 +44,8 @@ fn main() {
         .expect("Failed to find the farthest point");
     println!("{farthest}");
 
+    // The actual joins should be a no-op as all threads should already be finished
+    // because all sender channels have been sent
     for thread in threads {
         thread.join().expect("Failed to join thread");
     }
