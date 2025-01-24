@@ -19,6 +19,7 @@ impl Point {
         Self { lat, lng }
     }
 
+    /// The point directly opposite the current [Point] on a sphere
     #[inline]
     fn antipode(&self) -> Point {
         Point {
@@ -27,6 +28,9 @@ impl Point {
         }
     }
 
+    /// d = 2R × sin⁻¹(√(sin²((θ₂ - θ₁)/2) + cosθ₁ × cosθ₂ × sin²((φ₂ - φ₁)/2)))
+    /// θ₁, φ₁= lat, lng of start
+    /// θ₂, φ₂= lat, lng of end
     pub fn haversine_distance(&self, other: &Point) -> f32 {
         let s_lat_rad = self.lat.to_radians();
         let o_lat_rad = other.lat.to_radians();
@@ -49,6 +53,7 @@ impl fmt::Display for Point {
 impl TryFrom<String> for Point {
     type Error = &'static str;
 
+    /// Try to convert the string to a [Point]. Valid lines are two floats separated by a space
     fn try_from(value: String) -> Result<Self, Self::Error> {
         let space = match value.find(' ') {
             None => return Err("Invalid point; Missing space"),
@@ -138,6 +143,8 @@ impl Points {
         self.0.get(index)
     }
 
+    /// Get the [Farthest] by looking at each of the [Point]s in the range of
+    /// [start] to [start] + [count], against all other Points.
     pub fn farthest_point_with_offset(&self, start: usize, count: usize) -> Farthest {
         let mut farthest = Farthest::default();
         for current_point in self.0.iter().skip(start).take(count) {
@@ -167,6 +174,8 @@ impl ops::Index<usize> for Points {
     }
 }
 
+/// Attempt to load [Points] from the name of a file. This operation is buffered, but should
+/// consume the whole file before returning.
 pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
     let fp = std::fs::File::open(file_name)?;
     let reader = BufReader::new(fp);
