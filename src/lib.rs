@@ -5,10 +5,7 @@ use std::{cmp, ops};
 
 const DIAMETER_KM: f32 = 12_742.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
-const DEFAULT_POINT: Point = Point {
-    latitude: 0.0,
-    longitude: 0.0,
-};
+const DEFAULT_POINT: Point = Point::new(0.0, 0.0);
 
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct Point {
@@ -18,7 +15,7 @@ pub struct Point {
 
 impl Point {
     #[inline]
-    fn new(latitude: f32, longitude: f32) -> Self {
+    const fn new(latitude: f32, longitude: f32) -> Self {
         Self {
             latitude,
             longitude,
@@ -134,7 +131,7 @@ pub struct Points(Vec<Point>);
 
 impl Points {
     #[inline]
-    pub fn new(points: Vec<Point>) -> Self {
+    pub const fn new(points: Vec<Point>) -> Self {
         Self(points)
     }
 
