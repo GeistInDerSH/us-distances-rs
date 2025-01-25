@@ -5,37 +5,47 @@ use std::{cmp, ops};
 
 const DIAMETER_KM: f32 = 12_742.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
-const DEFAULT_POINT: Point = Point { lat: 0.0, lng: 0.0 };
+const DEFAULT_POINT: Point = Point {
+    latitude: 0.0,
+    longitude: 0.0,
+};
 
-#[derive(Clone, PartialEq, PartialOrd)]
+#[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct Point {
-    lat: f32,
-    lng: f32,
+    latitude: f32,
+    longitude: f32,
 }
 
 impl Point {
     #[inline]
-    fn new(lat: f32, lng: f32) -> Self {
-        Self { lat, lng }
+    fn new(latitude: f32, longitude: f32) -> Self {
+        Self {
+            latitude,
+            longitude,
+        }
     }
 
     /// The point directly opposite the current [Point] on a sphere
     #[inline]
     fn antipode(&self) -> Point {
         Point {
-            lat: self.lat * -1.0,
-            lng: self.lng + if self.lng < 0.0 { 180.0 } else { -180.0 },
+            latitude: self.latitude * -1.0,
+            longitude: self.longitude + if self.longitude < 0.0 { 180.0 } else { -180.0 },
         }
     }
 
-    /// d = 2R × sin⁻¹(√(sin²((θ₂ - θ₁)/2) + cosθ₁ × cosθ₂ × sin²((φ₂ - φ₁)/2)))
+    /// d = 2R × sin⁻¹(√(sin²((θ₂ - θ₁)/2) + cos(θ₁) × cos(θ₂) × sin²((φ₂ - φ₁)/2)))
     /// θ₁, φ₁= lat, lng of start
     /// θ₂, φ₂= lat, lng of end
     pub fn haversine_distance(&self, other: &Point) -> f32 {
-        let s_lat_rad = self.lat.to_radians();
-        let o_lat_rad = other.lat.to_radians();
+        let s_lat_rad = self.latitude.to_radians();
+        let o_lat_rad = other.latitude.to_radians();
         let a = (o_lat_rad - s_lat_rad).div(2.0).sin().powi(2);
-        let b = (other.lng - self.lng).to_radians().div(2.0).sin().powi(2);
+        let b = (other.longitude - self.longitude)
+            .to_radians()
+            .div(2.0)
+            .sin()
+            .powi(2);
         let cos = s_lat_rad.cos() * o_lat_rad.cos() * b;
         let c = cos + a;
         let d = c.sqrt().asin();
@@ -46,7 +56,7 @@ impl Point {
 impl fmt::Display for Point {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({:0.2}, {:0.2})", self.lat, self.lng)
+        write!(f, "({:0.2}, {:0.2})", self.latitude, self.longitude)
     }
 }
 
