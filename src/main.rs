@@ -22,7 +22,7 @@ fn main() {
         .get();
     let threads = (0..cores)
         .map(|_| {
-            let chan = shared_sender.clone();
+            let sender = shared_sender.clone();
             let all_points = all_points.clone();
             let read_index = read_index.clone();
             thread::spawn(move || loop {
@@ -31,7 +31,7 @@ fn main() {
                     return;
                 }
                 let point = all_points.farthest_point_with_offset(start, GROUP_SIZE);
-                chan.send(point)
+                sender.send(point)
                     .expect("Failed to send farthest point; Channel closed?");
             })
         })
