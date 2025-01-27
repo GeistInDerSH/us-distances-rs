@@ -7,6 +7,9 @@ const DIAMETER_KM: f32 = 12_742.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 const DEFAULT_POINT: Point = Point::new(0.0, 0.0);
 
+/// A Point on the Earth.
+///
+/// [latitude] & [longitude] are in degrees.
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct Point {
     latitude: f32,
