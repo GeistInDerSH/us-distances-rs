@@ -34,9 +34,15 @@ impl Point {
         }
     }
 
+    /// Calculate the [Haversine Distance](https://en.wikipedia.org/wiki/Haversine_formula) between
+    /// the current [Point] and the other Point.
+    /// Returns the distance, in KM, between the two points on earth.
+    ///
+    /// ```markdown
     /// d = 2R × sin⁻¹(√(sin²((θ₂ - θ₁)/2) + cos(θ₁) × cos(θ₂) × sin²((φ₂ - φ₁)/2)))
     /// θ₁, φ₁= lat, lng of start
     /// θ₂, φ₂= lat, lng of end
+    /// ```
     pub fn haversine_distance(&self, other: &Point) -> f32 {
         let s_lat_rad = self.latitude.to_radians();
         let o_lat_rad = other.latitude.to_radians();
