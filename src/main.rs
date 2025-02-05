@@ -17,9 +17,10 @@ fn main() {
     // Share a read offset, and read the GROUP_SIZE for each farthest point.
     // This allows for work-stealing between threads
     let read_index = Arc::new(AtomicUsize::new(0));
-    let cores = thread::available_parallelism()
-        .expect("Unknown cores")
-        .get();
+    let cores = match thread::available_parallelism() {
+        Ok(n) => n.get(),
+        Err(_) => 1,
+    };
     let threads = (0..cores)
         .map(|_| {
             let sender = shared_sender.clone();
@@ -31,7 +32,8 @@ fn main() {
                     return;
                 }
                 let point = all_points.farthest_point_with_offset(start, GROUP_SIZE);
-                sender.send(point)
+                sender
+                    .send(point)
                     .expect("Failed to send farthest point; Channel closed?");
             })
         })
