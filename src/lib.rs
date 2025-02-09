@@ -5,7 +5,6 @@ use std::{cmp, ops};
 
 const DIAMETER_KM: f32 = 12_742.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
-const DEFAULT_POINT: Point = Point::new(0.0, 0.0);
 
 /// A Point on the Earth.
 ///
@@ -66,6 +65,12 @@ impl fmt::Display for Point {
     }
 }
 
+impl Default for Point {
+    fn default() -> Self {
+        Self::new(0.0, 0.0)
+    }
+}
+
 impl TryFrom<String> for Point {
     type Error = &'static str;
 
@@ -110,8 +115,8 @@ impl Default for Farthest {
     #[inline]
     fn default() -> Self {
         Self {
-            opposite: DEFAULT_POINT,
-            closest: DEFAULT_POINT,
+            opposite: Point::default(),
+            closest: Point::default(),
             distance: f32::MIN,
         }
     }
@@ -163,6 +168,7 @@ impl Points {
     /// [start] to [start] + [count], against all other Points.
     pub fn farthest_point_with_offset(&self, start: usize, count: usize) -> Farthest {
         let mut farthest = Farthest::default();
+        let default = Point::default();
         for current_point in self.0.iter().skip(start).take(count) {
             let opposite = current_point.antipode();
             let (closest, distance) = self
@@ -170,7 +176,7 @@ impl Points {
                 .iter()
                 .map(|point| (point, opposite.haversine_distance(point)))
                 .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Equal))
-                .unwrap_or((&DEFAULT_POINT, 0.0));
+                .unwrap_or((&default, 0.0));
             if distance > farthest.distance {
                 farthest.distance = distance;
                 farthest.opposite = opposite;
