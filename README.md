@@ -2,8 +2,8 @@
 
 A Rust implementation of the Clojure US Distances program.
 
-This offers several optimizations over the Clojure version, that allows it
-to be faster:
+This offers several optimizations over the [Clojure version](https://github.com/GeistInDerSH/us-distances),
+that allows it to be faster:
 
 * 32-bit floats over 64-bit floats
 * Work-stealing threading model
