@@ -109,6 +109,11 @@ impl Farthest {
     fn distance_mi(&self) -> f32 {
         self.distance * KM_TO_MILE_RATIO
     }
+
+    #[inline]
+    fn origin(&self) -> Point {
+        self.opposite.antipode()
+    }
 }
 
 impl Default for Farthest {
@@ -125,7 +130,7 @@ impl Default for Farthest {
 impl fmt::Display for Farthest {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let start = self.opposite.antipode();
+        let start = self.origin();
         write!(
             f,
             "Starting Point: {}\nFarthest Point: {}\nClosest to Farthest: {}\nDistance to Closest: {:0.2}km / {:0.2}mi",
