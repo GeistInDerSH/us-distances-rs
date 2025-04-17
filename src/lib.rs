@@ -98,6 +98,7 @@ impl TryFrom<String> for Point {
 
 #[derive(PartialEq)]
 pub struct Farthest {
+    origin: Point,
     opposite: Point,
     closest: Point,
     distance: f32,
@@ -113,17 +114,13 @@ impl Farthest {
     fn distance_mi(&self) -> f32 {
         self.distance * KM_TO_MILE_RATIO
     }
-
-    #[inline]
-    fn origin(&self) -> Point {
-        self.opposite.antipode()
-    }
 }
 
 impl Default for Farthest {
     #[inline]
     fn default() -> Self {
         Self {
+            origin: Default::default(),
             opposite: Point::default(),
             closest: Point::default(),
             distance: f32::MIN,
@@ -134,11 +131,10 @@ impl Default for Farthest {
 impl fmt::Display for Farthest {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let start = self.origin();
         write!(
             f,
             "Starting Point: {}\nFarthest Point: {}\nClosest to Farthest: {}\nDistance to Closest: {:0.2}km / {:0.2}mi",
-            start, self.opposite, self.closest, self.distance_km(), self.distance_mi()
+            self.origin, self.opposite, self.closest, self.distance_km(), self.distance_mi()
         )
     }
 }
@@ -187,6 +183,7 @@ impl Points {
                 .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Equal))
                 .unwrap_or((&default, 0.0));
             if distance > farthest.distance {
+                farthest.origin = current_point.clone();
                 farthest.distance = distance;
                 farthest.opposite = opposite;
                 farthest.closest = closest.clone();
