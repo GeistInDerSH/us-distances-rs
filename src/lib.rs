@@ -1,6 +1,6 @@
 use std::fmt;
 use std::io::{prelude::*, BufReader};
-use std::ops::Div;
+use std::ops::Mul;
 use std::{cmp, ops};
 
 const DIAMETER_KM: f32 = 12_742.0;
@@ -13,23 +13,28 @@ const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 pub struct Point {
     latitude: f32,
     longitude: f32,
+    lat_cos: f32,
 }
 
 impl Point {
     #[inline]
-    const fn new(latitude: f32, longitude: f32) -> Self {
+    const fn new(latitude: f32, longitude: f32, lat_cos: f32) -> Self {
         Self {
             latitude,
             longitude,
+            lat_cos,
         }
     }
 
     /// The point directly opposite the current [Point] on a sphere
     #[inline]
     fn antipode(&self) -> Point {
+        const PI: f32 = std::f32::consts::PI;
+
         Point {
             latitude: self.latitude * -1.0,
-            longitude: self.longitude + if self.longitude < 0.0 { 180.0 } else { -180.0 },
+            longitude: self.longitude + if self.longitude < 0.0 { PI } else { -PI },
+            lat_cos: self.lat_cos,
         }
     }
 
@@ -43,16 +48,10 @@ impl Point {
     /// θ₂, φ₂= lat, lng of end
     /// ```
     pub fn haversine_distance(&self, other: &Point) -> f32 {
-        let s_lat_rad = self.latitude.to_radians();
-        let o_lat_rad = other.latitude.to_radians();
-        let a = (o_lat_rad - s_lat_rad).div(2.0).sin().powi(2);
-        let b = (other.longitude - self.longitude)
-            .to_radians()
-            .div(2.0)
-            .sin()
-            .powi(2);
-        let cos = s_lat_rad.cos() * o_lat_rad.cos() * b;
-        let c = cos + a;
+        let a = 0.5 - (other.latitude - self.latitude).cos().mul(0.5);
+        let b = (1.0 - (other.longitude - self.longitude).cos()).mul(0.5);
+        let cos = self.lat_cos * other.lat_cos * b;
+        let c = a + cos;
         let d = c.sqrt().asin();
         DIAMETER_KM * d
     }
@@ -61,13 +60,18 @@ impl Point {
 impl fmt::Display for Point {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "({:0.2}, {:0.2})", self.latitude, self.longitude)
+        write!(
+            f,
+            "({:0.2}, {:0.2})",
+            self.latitude.to_degrees(),
+            self.longitude.to_degrees()
+        )
     }
 }
 
 impl Default for Point {
     fn default() -> Self {
-        Self::new(0.0, 0.0)
+        Self::new(0.0, 0.0, 1.0)
     }
 }
 
@@ -81,14 +85,14 @@ impl TryFrom<String> for Point {
             Some(i) => i,
         };
         let lat = match value[0..space].parse::<f32>() {
-            Ok(lat) => lat,
+            Ok(lat) => lat.to_radians(),
             Err(_) => return Err("Failed to parse latitude"),
         };
         let lng = match value[space + 1..value.len()].parse::<f32>() {
-            Ok(lng) => lng,
+            Ok(lng) => lng.to_radians(),
             Err(_) => return Err("Failed to parse longitude"),
         };
-        Ok(Point::new(lat, lng))
+        Ok(Point::new(lat, lng, lat.cos()))
     }
 }
 
