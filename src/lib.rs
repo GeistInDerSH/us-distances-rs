@@ -49,7 +49,7 @@ impl Point {
     /// ```
     pub fn haversine_distance(&self, other: &Point) -> f32 {
         let a = 0.5 - (other.latitude - self.latitude).cos().mul(0.5);
-        let b = (1.0 - (other.longitude - self.longitude).cos()).mul(0.5);
+        let b = 0.5 - (other.longitude - self.longitude).cos().mul(0.5);
         let cos = self.lat_cos * other.lat_cos * b;
         let c = a + cos;
         let d = c.sqrt().asin();
