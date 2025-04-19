@@ -13,16 +13,16 @@ const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 pub struct Point {
     latitude: f32,
     longitude: f32,
-    lat_cos: f32,
+    latitude_cos: f32,
 }
 
 impl Point {
     #[inline]
-    const fn new(latitude: f32, longitude: f32, lat_cos: f32) -> Self {
+    const fn new(latitude: f32, longitude: f32, latitude_cos: f32) -> Self {
         Self {
             latitude,
             longitude,
-            lat_cos,
+            latitude_cos,
         }
     }
 
@@ -34,7 +34,7 @@ impl Point {
         Point {
             latitude: self.latitude * -1.0,
             longitude: self.longitude + if self.longitude < 0.0 { PI } else { -PI },
-            lat_cos: self.lat_cos,
+            latitude_cos: self.latitude_cos,
         }
     }
 
@@ -50,7 +50,7 @@ impl Point {
     pub fn haversine_distance(&self, other: &Point) -> f32 {
         let a = 0.5 - (other.latitude - self.latitude).cos().mul(0.5);
         let b = 0.5 - (other.longitude - self.longitude).cos().mul(0.5);
-        let cos = self.lat_cos * other.lat_cos * b;
+        let cos = self.latitude_cos * other.latitude_cos * b;
         let c = a + cos;
         let d = c.sqrt().asin();
         DIAMETER_KM * d
