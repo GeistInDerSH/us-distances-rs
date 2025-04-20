@@ -1,5 +1,5 @@
 use std::fmt;
-use std::io::{prelude::*, BufReader};
+use std::io::{BufRead, BufReader};
 use std::ops::Mul;
 use std::{cmp, ops};
 
