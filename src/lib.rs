@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::fmt;
 use std::io::{BufRead, BufReader};
 use std::ops::Mul;
@@ -207,10 +208,15 @@ impl ops::Index<usize> for Points {
 pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
     let fp = std::fs::File::open(file_name)?;
     let reader = BufReader::new(fp);
-    let points = reader
+    let mut points: Vec<Point> = reader
         .lines()
         .map(|line| line.expect("Failed to read line"))
         .map(|line| Point::try_from(line).expect("Failed to parse point from line"))
         .collect::<_>();
+    points.sort_by(|lhs, rhs| {
+        lhs.longitude
+            .partial_cmp(&rhs.longitude)
+            .unwrap_or(Ordering::Equal)
+    });
     Ok(Points::new(points))
 }
