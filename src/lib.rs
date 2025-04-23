@@ -1,8 +1,8 @@
+use rayon::prelude::*;
 use std::cmp::Ordering;
 use std::fmt;
 use std::io::{BufRead, BufReader};
 use std::ops::Mul;
-use std::{cmp, ops};
 
 const DIAMETER_KM: f32 = 12_742.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
@@ -10,7 +10,7 @@ const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 /// A Point on the Earth.
 ///
 /// [latitude] & [longitude] are in degrees.
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Clone, Copy)]
 pub struct Point {
     latitude: f32,
     longitude: f32,
@@ -18,7 +18,6 @@ pub struct Point {
 }
 
 impl Point {
-    #[inline]
     const fn new(latitude: f32, longitude: f32, latitude_cos: f32) -> Self {
         Self {
             latitude,
@@ -28,7 +27,6 @@ impl Point {
     }
 
     /// The point directly opposite the current [Point] on a sphere
-    #[inline]
     fn antipode(&self) -> Point {
         const PI: f32 = std::f32::consts::PI;
 
@@ -58,24 +56,6 @@ impl Point {
     }
 }
 
-impl fmt::Display for Point {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "({:0.2}, {:0.2})",
-            self.latitude.to_degrees(),
-            self.longitude.to_degrees()
-        )
-    }
-}
-
-impl Default for Point {
-    fn default() -> Self {
-        Self::new(0.0, 0.0, 1.0)
-    }
-}
-
 impl TryFrom<String> for Point {
     type Error = &'static str;
 
@@ -97,126 +77,81 @@ impl TryFrom<String> for Point {
     }
 }
 
-#[derive(PartialEq)]
 pub struct Farthest {
-    origin: Point,
-    opposite: Point,
-    closest: Point,
+    origin_latitude: f32,
+    origin_longitude: f32,
+    opposite_latitude: f32,
+    opposite_longitude: f32,
+    end_latitude: f32,
+    end_longitude: f32,
     distance: f32,
 }
 
 impl Farthest {
-    #[inline]
     fn distance_km(&self) -> f32 {
         self.distance
     }
 
-    #[inline]
     fn distance_mi(&self) -> f32 {
         self.distance * KM_TO_MILE_RATIO
     }
 }
 
-impl Default for Farthest {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            origin: Default::default(),
-            opposite: Point::default(),
-            closest: Point::default(),
-            distance: f32::MIN,
-        }
-    }
-}
-
 impl fmt::Display for Farthest {
-    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Starting Point: {}\nFarthest Point: {}\nClosest to Farthest: {}\nDistance to Closest: {:0.2}km / {:0.2}mi",
-            self.origin, self.opposite, self.closest, self.distance_km(), self.distance_mi()
+            "Starting Point: ({:0.2}, {:0.2})\nFarthest Point: ({:0.2}, {:0.2})\nClosest to Farthest: ({:0.2}, {:0.2})\nDistance to Closest: {:0.2}km / {:0.2}mi",
+            self.origin_latitude.to_degrees(),
+            self.origin_longitude.to_degrees(),
+            self.opposite_latitude.to_degrees(),
+            self.opposite_longitude.to_degrees(),
+            self.end_latitude.to_degrees(),
+            self.end_longitude.to_degrees(),
+            self.distance_km(),
+            self.distance_mi()
         )
     }
 }
 
-impl PartialOrd for Farthest {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.distance.partial_cmp(&other.distance)
-    }
-}
-
-pub struct Points(Vec<Point>);
-
-impl Points {
-    #[inline]
-    pub const fn new(points: Vec<Point>) -> Self {
-        Self(points)
-    }
-
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    #[inline]
-    pub fn get(&self, index: usize) -> Option<&Point> {
-        self.0.get(index)
-    }
-
-    /// Get the [Farthest] by looking at each of the [Point]s in the range of
-    /// [start] to [start] + [count], against all other Points.
-    pub fn farthest_point_with_offset(&self, start: usize, count: usize) -> Farthest {
-        let mut farthest = Farthest::default();
-        let default = Point::default();
-        for current_point in self.0.iter().skip(start).take(count) {
-            let opposite = current_point.antipode();
-            let (closest, distance) = self
-                .0
+pub fn farthest(points: Vec<Point>) -> Farthest {
+    let (origin, end, distance) = points
+        .par_iter()
+        .map(|origin| {
+            let opposite = origin.antipode();
+            let (end, dist) = points
                 .iter()
-                .map(|point| (point, opposite.haversine_distance(point)))
-                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Equal))
-                .unwrap_or((&default, 0.0));
-            if distance > farthest.distance {
-                farthest.origin = current_point.clone();
-                farthest.distance = distance;
-                farthest.opposite = opposite;
-                farthest.closest = closest.clone();
-            }
-        }
-        farthest
-    }
-}
+                .map(|other| (other, opposite.haversine_distance(other)))
+                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(Ordering::Greater))
+                .unwrap();
+            (origin, end, dist)
+        })
+        .max_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(Ordering::Less))
+        .unwrap();
 
-impl ops::Index<usize> for Points {
-    type Output = Point;
-
-    #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
-        self.0.index(index)
+    let opposite = origin.antipode();
+    Farthest {
+        origin_latitude: origin.latitude,
+        origin_longitude: origin.longitude,
+        opposite_longitude: opposite.longitude,
+        opposite_latitude: opposite.latitude,
+        end_latitude: end.latitude,
+        end_longitude: end.longitude,
+        distance,
     }
 }
 
 /// Attempt to load [Points] from the name of a file. This operation is buffered, but should
 /// consume the whole file before returning.
-pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
+pub fn try_load_points(file_name: &str) -> std::io::Result<Vec<Point>> {
     let fp = std::fs::File::open(file_name)?;
     let reader = BufReader::new(fp);
     let mut points: Vec<Point> = reader
         .lines()
-        .map(|line| line.expect("Failed to read line"))
-        .map(|line| Point::try_from(line).expect("Failed to parse point from line"))
+        .map(Result::unwrap)
+        .map(Point::try_from)
+        .map(Result::unwrap)
         .collect::<_>();
-    points.sort_by(|lhs, rhs| {
-        lhs.longitude
-            .partial_cmp(&rhs.longitude)
-            .unwrap_or(Ordering::Equal)
-    });
-    Ok(Points::new(points))
+    points.sort_by(|lhs, rhs| lhs.longitude.total_cmp(&rhs.longitude));
+    Ok(points)
 }

@@ -3,12 +3,8 @@ name = "usdist"
 version = "0.1.0"
 edition = "2021"
 
-[dev-dependencies]
-criterion = "0.5.1"
-
-[[bench]]
-name = "benchmarks"
-harness = false
+[dependencies]
+rayon = "1.10.0"
 
 [profile.dev]
 overflow-checks = false
