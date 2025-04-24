@@ -1,8 +1,6 @@
-use std::cmp::Ordering;
-use std::fmt;
 use std::io::{BufRead, BufReader};
-use std::ops::Mul;
-use std::{cmp, ops};
+use std::ops::{Index, Mul};
+use std::{cmp, fmt};
 
 const DIAMETER_KM: f32 = 12_742.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
@@ -194,7 +192,7 @@ impl Points {
     }
 }
 
-impl ops::Index<usize> for Points {
+impl Index<usize> for Points {
     type Output = Point;
 
     #[inline]
@@ -213,10 +211,6 @@ pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
         .map(|line| line.expect("Failed to read line"))
         .map(|line| Point::try_from(line).expect("Failed to parse point from line"))
         .collect::<_>();
-    points.sort_by(|lhs, rhs| {
-        lhs.longitude
-            .partial_cmp(&rhs.longitude)
-            .unwrap_or(Ordering::Equal)
-    });
+    points.sort_by(|lhs, rhs| lhs.longitude.total_cmp(&rhs.longitude));
     Ok(Points::new(points))
 }
