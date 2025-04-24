@@ -179,7 +179,7 @@ impl Points {
                 .0
                 .iter()
                 .map(|point| (point, opposite.haversine_distance(point)))
-                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Equal))
+                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Greater))
                 .unwrap_or((&default, 0.0));
             if distance > farthest.distance {
                 farthest.origin = current_point.clone();

@@ -42,7 +42,7 @@ fn main() {
 
     let farthest = receiver
         .into_iter()
-        .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Equal))
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(cmp::Ordering::Less))
         .expect("Failed to find the farthest point");
     println!("{farthest}");
 
