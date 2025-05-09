@@ -7,7 +7,7 @@ const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 
 /// A Point on the Earth.
 ///
-/// [latitude] & [longitude] are in degrees.
+/// [latitude] & [longitude] are in radians.
 #[derive(Clone, PartialEq, PartialOrd, Debug)]
 pub struct Point {
     latitude: f32,
