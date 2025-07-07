@@ -6,6 +6,10 @@ edition = "2021"
 [dev-dependencies]
 criterion = "0.5.1"
 
+[dependencies]
+kd-tree = "0.6.1"
+typenum = "1.18.0"
+
 [[bench]]
 name = "benchmarks"
 harness = false

@@ -1,8 +1,10 @@
+use kd_tree::{KdPoint, KdTree};
+use std::fmt;
 use std::io::{BufRead, BufReader};
 use std::ops::{Index, Mul};
-use std::{cmp, fmt};
 
-const DIAMETER_KM: f32 = 12_742.0;
+const RADIUS_KM: f32 = 6371.0;
+const DIAMETER_KM: f32 = RADIUS_KM * 2.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 
 /// A Point on the Earth.
@@ -65,6 +67,19 @@ impl fmt::Display for Point {
             self.latitude.to_degrees(),
             self.longitude.to_degrees()
         )
+    }
+}
+
+impl From<&Point3D> for Point {
+    fn from(point: &Point3D) -> Self {
+        let long = point.y.atan2(point.x);
+        let hyp = (point.x.powi(2) + point.y.powi(2)).sqrt();
+        let lat = point.z.atan2(hyp);
+        Point {
+            latitude: lat,
+            longitude: long,
+            latitude_cos: lat.cos(),
+        }
     }
 }
 
@@ -138,13 +153,6 @@ impl fmt::Display for Farthest {
     }
 }
 
-impl PartialOrd for Farthest {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.distance.partial_cmp(&other.distance)
-    }
-}
-
 pub struct Points(Vec<Point>);
 
 impl Points {
@@ -153,42 +161,70 @@ impl Points {
         Self(points)
     }
 
-    #[inline]
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
+    pub fn farthest(&self) -> Farthest {
+        let p3d = self.0.iter().map(Point3D::from).collect();
+        let kd = KdTree::build_by_ordered_float(p3d);
 
-    #[inline]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    #[inline]
-    pub fn get(&self, index: usize) -> Option<&Point> {
-        self.0.get(index)
-    }
-
-    /// Get the [Farthest] by looking at each of the [Point]s in the range of
-    /// [start] to [start] + [count], against all other Points.
-    pub fn farthest_point_with_offset(&self, start: usize, count: usize) -> Farthest {
         let mut farthest = Farthest::default();
-        let default = Point::default();
-        for current_point in self.0.iter().skip(start).take(count) {
-            let opposite = current_point.antipode();
-            let (closest, distance) = self
-                .0
-                .iter()
-                .map(|point| (point, opposite.haversine_distance(point)))
-                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(cmp::Ordering::Greater))
-                .unwrap_or((&default, 0.0));
-            if distance > farthest.distance {
-                farthest.origin = current_point.clone();
-                farthest.distance = distance;
+        for point in self.0.iter() {
+            let opposite = point.antipode();
+            let o_3d = Point3D::from(&opposite);
+
+            let n = kd.nearest(&o_3d);
+            if n.is_none() {
+                continue;
+            }
+            let n = n.unwrap();
+            let closest = Point::from(n.item);
+            let dist = opposite.haversine_distance(&closest);
+            if dist > farthest.distance {
+                farthest.distance = dist;
+                farthest.origin = point.clone();
                 farthest.opposite = opposite;
                 farthest.closest = closest.clone();
             }
         }
+
         farthest
+    }
+}
+
+struct Point3D {
+    x: f32,
+    y: f32,
+    z: f32,
+}
+
+impl From<&Point> for Point3D {
+    fn from(point: &Point) -> Self {
+        Point3D {
+            x: RADIUS_KM * point.latitude_cos * point.longitude.cos(),
+            y: RADIUS_KM * point.latitude_cos * point.longitude.sin(),
+            z: RADIUS_KM * point.latitude.sin(),
+        }
+    }
+}
+
+impl From<Point> for Point3D {
+    fn from(point: Point) -> Self {
+        Point3D {
+            x: RADIUS_KM * point.latitude_cos * point.longitude.cos(),
+            y: RADIUS_KM * point.latitude_cos * point.longitude.sin(),
+            z: RADIUS_KM * point.latitude.sin(),
+        }
+    }
+}
+
+impl KdPoint for Point3D {
+    type Scalar = f32;
+    type Dim = typenum::U3;
+
+    fn at(&self, i: usize) -> Self::Scalar {
+        match i {
+            0 => self.x,
+            1 => self.y,
+            _ => self.z,
+        }
     }
 }
 
