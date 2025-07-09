@@ -242,11 +242,10 @@ impl Index<usize> for Points {
 pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
     let fp = std::fs::File::open(file_name)?;
     let reader = BufReader::new(fp);
-    let mut points: Vec<Point> = reader
+    let points: Vec<Point> = reader
         .lines()
         .map(|line| line.expect("Failed to read line"))
         .map(|line| Point::try_from(line).expect("Failed to parse point from line"))
         .collect::<_>();
-    points.sort_by(|lhs, rhs| lhs.longitude.total_cmp(&rhs.longitude));
     Ok(Points::new(points))
 }
