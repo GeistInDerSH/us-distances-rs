@@ -34,7 +34,7 @@ impl Point {
         const PI: f32 = std::f32::consts::PI;
 
         Point {
-            latitude: self.latitude * -1.0,
+            latitude: -self.latitude,
             longitude: self.longitude + if self.longitude < 0.0 { PI } else { -PI },
             latitude_cos: self.latitude_cos,
         }
@@ -68,19 +68,6 @@ impl fmt::Display for Point {
             self.latitude.to_degrees(),
             self.longitude.to_degrees()
         )
-    }
-}
-
-impl From<&Point3D> for Point {
-    fn from(point: &Point3D) -> Self {
-        let long = point.y.atan2(point.x);
-        let hyp = (point.x.powi(2) + point.y.powi(2)).sqrt();
-        let lat = point.z.atan2(hyp);
-        Point {
-            latitude: lat,
-            longitude: long,
-            latitude_cos: lat.cos(),
-        }
     }
 }
 
