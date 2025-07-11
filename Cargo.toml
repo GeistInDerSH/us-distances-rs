@@ -7,8 +7,7 @@ edition = "2021"
 criterion = "0.5.1"
 
 [dependencies]
-kd-tree = "0.6.1"
-typenum = "1.18.0"
+kdtree = "0.7.0"
 
 [[bench]]
 name = "benchmarks"
@@ -33,3 +32,8 @@ debug = "none"
 split-debuginfo = "off"
 strip = "symbols"
 incremental = false
+overflow-checks = false
+opt-level = 3
+debug-assertions = false
+lto = "fat"
+rpath = false

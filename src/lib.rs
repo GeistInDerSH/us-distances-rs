@@ -1,4 +1,5 @@
-use kd_tree::{KdPoint, KdTree};
+use kdtree::distance::squared_euclidean;
+use kdtree::KdTree;
 use std::fmt;
 use std::io::{BufRead, BufReader};
 use std::ops::{Index, Mul};
@@ -162,26 +163,28 @@ impl Points {
     }
 
     pub fn farthest(&self) -> Farthest {
-        let p3d = self.0.iter().map(Point3D::from).collect();
-        let kd = KdTree::build_by_ordered_float(p3d);
+        let mut kd = KdTree::with_capacity(3, 1 << 7);
+        for p in self.0.iter() {
+            let p3d = Point3D::from(p);
+            let _ = kd.add(p3d.to_array(), p);
+        }
 
         let mut farthest = Farthest::default();
         for point in self.0.iter() {
             let opposite = point.antipode();
             let o_3d = Point3D::from(&opposite);
 
-            let n = kd.nearest(&o_3d);
-            if n.is_none() {
+            let n = kd.nearest(&o_3d.to_array(), 1, &squared_euclidean);
+            if n.is_err() {
                 continue;
             }
-            let n = n.unwrap();
-            let closest = Point::from(n.item);
-            let dist = opposite.haversine_distance(&closest);
+            let closest = n.unwrap()[0].1;
+            let dist = opposite.haversine_distance(closest);
             if dist > farthest.distance {
                 farthest.distance = dist;
                 farthest.origin = point.clone();
                 farthest.opposite = opposite;
-                farthest.closest = closest.clone();
+                farthest.closest = (**closest).clone();
             }
         }
 
@@ -189,10 +192,17 @@ impl Points {
     }
 }
 
+#[derive(PartialOrd, PartialEq)]
 struct Point3D {
     x: f32,
     y: f32,
     z: f32,
+}
+
+impl Point3D {
+    fn to_array(&self) -> [f32; 3] {
+        [self.x, self.y, self.z]
+    }
 }
 
 impl From<&Point> for Point3D {
@@ -201,29 +211,6 @@ impl From<&Point> for Point3D {
             x: RADIUS_KM * point.latitude_cos * point.longitude.cos(),
             y: RADIUS_KM * point.latitude_cos * point.longitude.sin(),
             z: RADIUS_KM * point.latitude.sin(),
-        }
-    }
-}
-
-impl From<Point> for Point3D {
-    fn from(point: Point) -> Self {
-        Point3D {
-            x: RADIUS_KM * point.latitude_cos * point.longitude.cos(),
-            y: RADIUS_KM * point.latitude_cos * point.longitude.sin(),
-            z: RADIUS_KM * point.latitude.sin(),
-        }
-    }
-}
-
-impl KdPoint for Point3D {
-    type Scalar = f32;
-    type Dim = typenum::U3;
-
-    fn at(&self, i: usize) -> Self::Scalar {
-        match i {
-            0 => self.x,
-            1 => self.y,
-            _ => self.z,
         }
     }
 }
