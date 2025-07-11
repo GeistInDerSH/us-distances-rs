@@ -1,7 +1,6 @@
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
 use std::fmt;
-use std::io::{BufRead, BufReader};
 use std::ops::{Index, Mul};
 
 const RADIUS_KM: f32 = 6371.0;
@@ -77,11 +76,11 @@ impl Default for Point {
     }
 }
 
-impl TryFrom<String> for Point {
+impl TryFrom<&str> for Point {
     type Error = &'static str;
 
     /// Try to convert the string to a [Point]. Valid lines are two floats separated by a space
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         let space = match value.find(' ') {
             None => return Err("Invalid point; Missing space"),
             Some(i) => i,
@@ -214,11 +213,9 @@ impl Index<usize> for Points {
 /// Attempt to load [Points] from the name of a file. This operation is buffered, but should
 /// consume the whole file before returning.
 pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
-    let fp = std::fs::File::open(file_name)?;
-    let reader = BufReader::new(fp);
-    let points: Vec<Point> = reader
+    let contents = std::fs::read_to_string(file_name)?;
+    let points: Vec<Point> = contents
         .lines()
-        .map(|line| line.expect("Failed to read line"))
         .map(|line| Point::try_from(line).expect("Failed to parse point from line"))
         .collect::<_>();
     Ok(Points::new(points))
