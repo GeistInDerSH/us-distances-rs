@@ -1,7 +1,8 @@
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
-use std::fmt;
-use std::ops::{Index, Mul};
+use std::ops::Mul;
+use std::sync::{mpsc, Arc};
+use std::{fmt, thread};
 
 const RADIUS_KM: f32 = 6371.0;
 const DIAMETER_KM: f32 = RADIUS_KM * 2.0;
@@ -10,7 +11,7 @@ const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 /// A Point on the Earth.
 ///
 /// [latitude] & [longitude] are in radians.
-#[derive(Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Copy)]
 pub struct Point {
     latitude: f32,
     longitude: f32,
@@ -97,7 +98,7 @@ impl TryFrom<&str> for Point {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 pub struct Farthest {
     origin: Point,
     opposite: Point,
@@ -140,40 +141,67 @@ impl fmt::Display for Farthest {
     }
 }
 
-pub struct Points(Vec<Point>);
+pub struct Points(Arc<Vec<Point>>);
 
 impl Points {
     #[inline]
-    pub const fn new(points: Vec<Point>) -> Self {
-        Self(points)
+    pub fn new(points: Vec<Point>) -> Self {
+        Self(Arc::new(points))
     }
 
     pub fn farthest(&self) -> Farthest {
         let mut kd = KdTree::with_capacity(3, 1 << 7);
         for p in self.0.iter() {
             let p3d = Point3D::from(p);
-            let _ = kd.add(p3d.to_array(), p);
+            let _ = kd.add(p3d.to_array(), *p);
         }
 
-        let mut farthest = Farthest::default();
-        for point in self.0.iter() {
-            let opposite = point.antipode();
-            let o_3d = Point3D::from(&opposite);
+        let tree = Arc::new(kd);
+        let (sndr, rcvr) = mpsc::channel::<Farthest>();
+        let send = Arc::new(sndr);
 
-            let n = kd.nearest(&o_3d.to_array(), 1, &squared_euclidean);
-            if n.is_err() {
-                continue;
-            }
-            let closest = n.unwrap()[0].1;
-            let dist = opposite.haversine_distance(closest);
-            if dist > farthest.distance {
-                farthest.distance = dist;
-                farthest.origin = point.clone();
-                farthest.opposite = opposite;
-                farthest.closest = (**closest).clone();
-            }
+        let cores = match thread::available_parallelism() {
+            Ok(v) => v.get(),
+            Err(_) => 1,
+        };
+        let process_count = self.0.len() / cores;
+        let threads = (0..cores)
+            .map(|i| {
+                let points = self.0.clone();
+                let send = send.clone();
+                let tree = tree.clone();
+                thread::spawn(move || {
+                    let mut farthest = Farthest::default();
+                    for point in points.iter().skip(i * process_count).take(process_count) {
+                        let opposite = point.antipode();
+                        let o_3d = Point3D::from(&opposite);
+
+                        let n = tree.nearest(&o_3d.to_array(), 1, &squared_euclidean);
+                        if n.is_err() {
+                            continue;
+                        }
+                        let closest = n.unwrap()[0].1;
+                        let dist = opposite.haversine_distance(closest);
+                        if dist > farthest.distance {
+                            farthest.distance = dist;
+                            farthest.origin = *point;
+                            farthest.opposite = opposite;
+                            farthest.closest = *closest;
+                        }
+                    }
+                    send.send(farthest).unwrap();
+                })
+            })
+            .collect::<Vec<_>>();
+        drop(send);
+
+        let farthest = rcvr
+            .into_iter()
+            .max_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
+            .unwrap();
+        for thread in threads {
+            thread.join().unwrap();
         }
-
         farthest
     }
 }
@@ -198,15 +226,6 @@ impl From<&Point> for Point3D {
             y: RADIUS_KM * point.latitude_cos * point.longitude.sin(),
             z: RADIUS_KM * point.latitude.sin(),
         }
-    }
-}
-
-impl Index<usize> for Points {
-    type Output = Point;
-
-    #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
-        self.0.index(index)
     }
 }
 
