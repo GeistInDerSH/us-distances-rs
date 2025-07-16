@@ -11,20 +11,18 @@ const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 /// A Point on the Earth.
 ///
 /// [latitude] & [longitude] are in radians.
-#[derive(Clone, PartialEq, PartialOrd, Debug, Copy)]
+#[derive(Clone, PartialEq, PartialOrd, Copy)]
 pub struct Point {
     latitude: f32,
     longitude: f32,
-    latitude_cos: f32,
 }
 
 impl Point {
     #[inline]
-    const fn new(latitude: f32, longitude: f32, latitude_cos: f32) -> Self {
+    const fn new(latitude: f32, longitude: f32) -> Self {
         Self {
             latitude,
             longitude,
-            latitude_cos,
         }
     }
 
@@ -36,7 +34,6 @@ impl Point {
         Point {
             latitude: -self.latitude,
             longitude: self.longitude + if self.longitude < 0.0 { PI } else { -PI },
-            latitude_cos: self.latitude_cos,
         }
     }
 
@@ -52,7 +49,7 @@ impl Point {
     pub fn haversine_distance(&self, other: &Point) -> f32 {
         let a = 0.5 - (other.latitude - self.latitude).cos().mul(0.5);
         let b = 0.5 - (other.longitude - self.longitude).cos().mul(0.5);
-        let cos = self.latitude_cos * other.latitude_cos * b;
+        let cos = self.latitude.cos() * other.latitude.cos() * b;
         let c = a + cos;
         let d = c.sqrt().asin();
         DIAMETER_KM * d
@@ -73,7 +70,7 @@ impl fmt::Display for Point {
 
 impl Default for Point {
     fn default() -> Self {
-        Self::new(0.0, 0.0, 1.0)
+        Self::new(0.0, 0.0)
     }
 }
 
@@ -94,7 +91,7 @@ impl TryFrom<&str> for Point {
             Ok(lng) => lng.to_radians(),
             Err(_) => return Err("Failed to parse longitude"),
         };
-        Ok(Point::new(lat, lng, lat.cos()))
+        Ok(Point::new(lat, lng))
     }
 }
 
@@ -153,7 +150,7 @@ impl Points {
         let mut kd = KdTree::with_capacity(3, 1 << 7);
         for p in self.0.iter() {
             let p3d = Point3D::from(p);
-            let _ = kd.add(p3d.to_array(), *p);
+            let _ = kd.add(p3d.0, *p);
         }
 
         let tree = Arc::new(kd);
@@ -176,7 +173,7 @@ impl Points {
                         let opposite = point.antipode();
                         let o_3d = Point3D::from(&opposite);
 
-                        let n = tree.nearest(&o_3d.to_array(), 1, &squared_euclidean);
+                        let n = tree.nearest(&o_3d.0, 1, &squared_euclidean);
                         if n.is_err() {
                             continue;
                         }
@@ -207,25 +204,14 @@ impl Points {
 }
 
 #[derive(PartialOrd, PartialEq)]
-struct Point3D {
-    x: f32,
-    y: f32,
-    z: f32,
-}
-
-impl Point3D {
-    fn to_array(&self) -> [f32; 3] {
-        [self.x, self.y, self.z]
-    }
-}
+struct Point3D([f32; 3]);
 
 impl From<&Point> for Point3D {
     fn from(point: &Point) -> Self {
-        Point3D {
-            x: RADIUS_KM * point.latitude_cos * point.longitude.cos(),
-            y: RADIUS_KM * point.latitude_cos * point.longitude.sin(),
-            z: RADIUS_KM * point.latitude.sin(),
-        }
+        let x = RADIUS_KM * point.latitude.cos() * point.longitude.cos();
+        let y = RADIUS_KM * point.latitude.cos() * point.longitude.sin();
+        let z = RADIUS_KM * point.latitude.sin();
+        Point3D([x, y, z])
     }
 }
 
