@@ -8,14 +8,12 @@ farthest distance from any point of US soil.
 The following will build an optimized binary for the local architecture:
 
 ```bash
-
-RUSTFLAGS='-C target-cpu=native' cargo build --release
+cargo build --release
 ```
 
 ## Benchmarking
 
 ```bash
-
 hyperfine --warmup 30 ./target/release/usdist
 ```
 
