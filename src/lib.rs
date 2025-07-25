@@ -147,11 +147,14 @@ impl Points {
     }
 
     pub fn farthest(&self) -> Farthest {
-        let mut kd = KdTree::with_capacity(3, 1 << 7);
-        for p in self.0.iter() {
-            let p3d = Point3D::from(p);
-            let _ = kd.add(p3d.0, *p);
-        }
+        let kd = {
+            let mut kd = KdTree::with_capacity(3, 1 << 7);
+            for p in self.0.iter() {
+                let p3d = Point3D::from(p);
+                let _ = kd.add(p3d.0, *p);
+            }
+            kd
+        };
 
         let tree = Arc::new(kd);
         let (sndr, rcvr) = mpsc::channel::<Farthest>();
