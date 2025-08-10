@@ -4,8 +4,11 @@ use std::ops::Mul;
 use std::sync::{mpsc, Arc};
 use std::{fmt, thread};
 
-const RADIUS_KM: f32 = 6371.0;
-const DIAMETER_KM: f32 = RADIUS_KM * 2.0;
+type DistanceKm = f32;
+type DistanceMi = f32;
+
+const RADIUS_KM: DistanceKm = 6371.0;
+const DIAMETER_KM: DistanceKm = RADIUS_KM * 2.0;
 const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 
 /// A Point on the Earth.
@@ -46,7 +49,7 @@ impl Point {
     /// θ₁, φ₁= lat, lng of start
     /// θ₂, φ₂= lat, lng of end
     /// ```
-    pub fn haversine_distance(&self, other: &Point) -> f32 {
+    pub fn haversine_distance(&self, other: &Point) -> DistanceKm {
         let a = 0.5 - (other.latitude - self.latitude).cos().mul(0.5);
         let b = 0.5 - (other.longitude - self.longitude).cos().mul(0.5);
         let cos = self.latitude.cos() * other.latitude.cos() * b;
@@ -100,17 +103,17 @@ pub struct Farthest {
     origin: Point,
     opposite: Point,
     closest: Point,
-    distance: f32,
+    distance: DistanceKm,
 }
 
 impl Farthest {
     #[inline]
-    fn distance_km(&self) -> f32 {
+    fn distance_km(&self) -> DistanceKm {
         self.distance
     }
 
     #[inline]
-    fn distance_mi(&self) -> f32 {
+    fn distance_mi(&self) -> DistanceMi {
         self.distance * KM_TO_MILE_RATIO
     }
 }
