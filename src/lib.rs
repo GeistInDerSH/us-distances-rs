@@ -82,18 +82,17 @@ impl TryFrom<&str> for Point {
 
     /// Try to convert the string to a [Point]. Valid lines are two floats separated by a space
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        let space = match value.find(' ') {
-            None => return Err("Invalid point; Missing space"),
-            Some(i) => i,
-        };
-        let lat = match value[0..space].parse::<f32>() {
-            Ok(lat) => lat.to_radians(),
-            Err(_) => return Err("Failed to parse latitude"),
-        };
-        let lng = match value[space + 1..value.len()].parse::<f32>() {
-            Ok(lng) => lng.to_radians(),
-            Err(_) => return Err("Failed to parse longitude"),
-        };
+        let mut parts = value.split_whitespace();
+        let lat = parts
+            .next()
+            .ok_or("Invalid point; Missing latitude")?
+            .parse::<f32>()
+            .map_err(|_| "Invalid point; Invalid latitude")?;
+        let lng = parts
+            .next()
+            .ok_or("Invalid point; Missing latitude")?
+            .parse::<f32>()
+            .map_err(|_| "Invalid point; Invalid latitude")?;
         Ok(Point::new(lat, lng))
     }
 }
@@ -141,25 +140,21 @@ impl fmt::Display for Farthest {
     }
 }
 
-pub struct Points(Arc<Vec<Point>>);
+pub struct Points {
+    points: Arc<Vec<Point>>,
+    tree: Arc<KdTree<f32, Point, [f32; 3]>>,
+}
 
 impl Points {
     #[inline]
-    pub fn new(points: Vec<Point>) -> Self {
-        Self(Arc::new(points))
+    pub fn new(points: Vec<Point>, tree: KdTree<f32, Point, [f32; 3]>) -> Self {
+        Self {
+            points: Arc::new(points),
+            tree: Arc::new(tree),
+        }
     }
 
     pub fn farthest(&self) -> Farthest {
-        let kd = {
-            let mut kd = KdTree::with_capacity(3, 1 << 7);
-            for p in self.0.iter() {
-                let p3d = Point3D::from(p);
-                let _ = kd.add(p3d.0, *p);
-            }
-            kd
-        };
-
-        let tree = Arc::new(kd);
         let (sndr, rcvr) = mpsc::channel::<Farthest>();
         let send = Arc::new(sndr);
 
@@ -167,12 +162,12 @@ impl Points {
             Ok(v) => v.get(),
             Err(_) => 1,
         };
-        let process_count = self.0.len() / cores;
+        let process_count = self.points.len() / cores;
         let threads = (0..cores)
             .map(|i| {
-                let points = self.0.clone();
+                let points = self.points.clone();
                 let send = send.clone();
-                let tree = tree.clone();
+                let tree = self.tree.clone();
                 thread::spawn(move || {
                     let mut farthest = Farthest::default();
                     for point in points.iter().skip(i * process_count).take(process_count) {
@@ -225,9 +220,13 @@ impl From<&Point> for Point3D {
 /// consume the whole file before returning.
 pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
     let contents = std::fs::read_to_string(file_name)?;
-    let points: Vec<Point> = contents
-        .lines()
-        .map(|line| Point::try_from(line).expect("Failed to parse point from line"))
-        .collect::<_>();
-    Ok(Points::new(points))
+    let mut kd = KdTree::with_capacity(3, 1 << 7);
+    let mut points = Vec::with_capacity(12_033);
+    for line in contents.lines() {
+        let point = Point::try_from(line).expect("Failed to parse point from line");
+        points.push(point);
+        let point_3d = Point3D::from(&point);
+        let _ = kd.add(point_3d.0, point);
+    }
+    Ok(Points::new(points, kd))
 }
