@@ -1,6 +1,9 @@
+use bincode::{Decode, Encode};
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
+use std::io::Write;
 use std::ops::Mul;
+use std::path::Path;
 use std::sync::{mpsc, Arc};
 use std::{fmt, thread};
 
@@ -14,7 +17,7 @@ const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 /// A Point on the Earth.
 ///
 /// [latitude] & [longitude] are in radians.
-#[derive(Clone, PartialEq, PartialOrd, Copy)]
+#[derive(Clone, PartialEq, PartialOrd, Copy, Encode, Decode)]
 pub struct Point {
     latitude: f32,
     longitude: f32,
@@ -154,6 +157,15 @@ impl Points {
         }
     }
 
+    pub fn save(&self) {
+        let mut slice = [0u8; 1024 * 1024];
+        bincode::encode_into_slice(self.points.clone(), &mut slice, bincode::config::standard())
+            .unwrap();
+
+        let mut fd = std::fs::File::create(Path::new("points.bincode")).unwrap();
+        fd.write_all(&slice).unwrap();
+    }
+
     pub fn farthest(&self) -> Farthest {
         let (sndr, rcvr) = mpsc::channel::<Farthest>();
         let send = Arc::new(sndr);
@@ -229,4 +241,22 @@ pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
         let _ = kd.add(point_3d.0, point);
     }
     Ok(Points::new(points, kd))
+}
+
+pub fn try_load_points_bin(file_name: &str) -> std::io::Result<Points> {
+    let contents = std::fs::read(file_name)?;
+    Ok(try_load_points_bin_data(contents.as_slice()))
+}
+
+pub fn try_load_points_bin_data(data: &[u8]) -> Points {
+    let points: Vec<Point> = bincode::decode_from_slice(data, bincode::config::standard())
+        .unwrap()
+        .0;
+
+    let mut kd = KdTree::with_capacity(3, 1 << 7);
+    for point in points.iter() {
+        let point_3d = Point3D::from(point);
+        let _ = kd.add(point_3d.0, *point);
+    }
+    Points::new(points, kd)
 }

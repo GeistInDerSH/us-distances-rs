@@ -8,6 +8,7 @@ criterion = "0.5.1"
 
 [dependencies]
 kdtree = "0.7.0"
+bincode = "2.0.1"
 
 [[bench]]
 name = "benchmarks"
