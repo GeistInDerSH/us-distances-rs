@@ -1,8 +1,9 @@
 use bincode::{Decode, Encode};
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
-use std::ops::Mul;
+use std::ops::{Deref, Mul};
 use std::path::Path;
 use std::sync::{mpsc, Arc};
 use std::{fmt, thread};
@@ -17,7 +18,7 @@ const KM_TO_MILE_RATIO: f32 = 0.621_371_2;
 /// A Point on the Earth.
 ///
 /// [latitude] & [longitude] are in radians.
-#[derive(Clone, PartialEq, PartialOrd, Copy, Encode, Decode)]
+#[derive(Clone, PartialEq, PartialOrd, Copy, Encode, Decode, Serialize, Deserialize)]
 pub struct Point {
     latitude: f32,
     longitude: f32,
@@ -158,12 +159,31 @@ impl Points {
     }
 
     pub fn save(&self) {
-        let mut slice = [0u8; 1024 * 1024];
-        bincode::encode_into_slice(self.points.clone(), &mut slice, bincode::config::standard())
+        {
+            let mut slice = [0u8; 0x00017810];
+            bincode::encode_into_slice(
+                self.points.clone(),
+                &mut slice,
+                bincode::config::standard(),
+            )
             .unwrap();
 
-        let mut fd = std::fs::File::create(Path::new("points.bincode")).unwrap();
-        fd.write_all(&slice).unwrap();
+            let mut fd = std::fs::File::create(Path::new("data/points.bin")).unwrap();
+            fd.write_all(&slice).unwrap();
+        }
+
+        {
+            let mut slice = [0u8; 0x0003dec0];
+            bincode::serde::encode_into_slice(
+                self.tree.deref(),
+                &mut slice,
+                bincode::config::standard(),
+            )
+            .unwrap();
+
+            let mut fd = std::fs::File::create(Path::new("data/tree.bin")).unwrap();
+            fd.write_all(&slice).unwrap();
+        }
     }
 
     pub fn farthest(&self) -> Farthest {
@@ -258,5 +278,16 @@ pub fn try_load_points_bin_data(data: &[u8]) -> Points {
         let point_3d = Point3D::from(point);
         let _ = kd.add(point_3d.0, *point);
     }
+    Points::new(points, kd)
+}
+
+pub fn try_load_points_bin_data_tree(data: &[u8], tree: &[u8]) -> Points {
+    let points: Vec<Point> = bincode::decode_from_slice(data, bincode::config::standard())
+        .unwrap()
+        .0;
+    let kd: KdTree<f32, Point, [f32; 3]> =
+        bincode::serde::decode_from_slice(tree, bincode::config::standard())
+            .unwrap()
+            .0;
     Points::new(points, kd)
 }

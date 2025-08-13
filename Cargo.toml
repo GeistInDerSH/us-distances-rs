@@ -7,8 +7,9 @@ edition = "2021"
 criterion = "0.5.1"
 
 [dependencies]
-kdtree = "0.7.0"
-bincode = "2.0.1"
+kdtree = { version = "0.7.0", features = ["serialize"] }
+serde = { version = "1.0.219", features = ["derive"] }
+bincode = { version = "2.0.1", features = ["serde"] }
 
 [[bench]]
 name = "benchmarks"
