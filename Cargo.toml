@@ -3,6 +3,14 @@ name = "usdist"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "run"
+path = "src/bin/run.rs"
+
+[[bin]]
+name = "generate"
+path = "src/bin/generate.rs"
+
 [dev-dependencies]
 criterion = "0.5.1"
 

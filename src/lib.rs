@@ -3,7 +3,7 @@ use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
-use std::ops::{Deref, Mul};
+use std::ops::Mul;
 use std::path::Path;
 use std::sync::{mpsc, Arc};
 use std::{fmt, thread};
@@ -109,18 +109,6 @@ pub struct Farthest {
     distance: DistanceKm,
 }
 
-impl Farthest {
-    #[inline]
-    fn distance_km(&self) -> DistanceKm {
-        self.distance
-    }
-
-    #[inline]
-    fn distance_mi(&self) -> DistanceMi {
-        self.distance * KM_TO_MILE_RATIO
-    }
-}
-
 impl Default for Farthest {
     #[inline]
     fn default() -> Self {
@@ -136,10 +124,12 @@ impl Default for Farthest {
 impl fmt::Display for Farthest {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let distance_km = self.opposite.haversine_distance(&self.closest);
+        let distance_mi: DistanceMi = distance_km * KM_TO_MILE_RATIO;
         write!(
             f,
             "Starting Point: {}\nFarthest Point: {}\nClosest to Farthest: {}\nDistance to Closest: {:0.2}km / {:0.2}mi",
-            self.origin, self.opposite, self.closest, self.distance_km(), self.distance_mi()
+            self.origin, self.opposite, self.closest, distance_km, distance_mi
         )
     }
 }
@@ -160,26 +150,16 @@ impl Points {
 
     pub fn save(&self) {
         {
-            let mut slice = [0u8; 0x00017810];
-            bincode::encode_into_slice(
-                self.points.clone(),
-                &mut slice,
-                bincode::config::standard(),
-            )
-            .unwrap();
+            let slice =
+                bincode::encode_to_vec(self.points.clone(), bincode::config::standard()).unwrap();
 
             let mut fd = std::fs::File::create(Path::new("data/points.bin")).unwrap();
             fd.write_all(&slice).unwrap();
         }
 
         {
-            let mut slice = [0u8; 0x0003dec0];
-            bincode::serde::encode_into_slice(
-                self.tree.deref(),
-                &mut slice,
-                bincode::config::standard(),
-            )
-            .unwrap();
+            let slice =
+                bincode::serde::encode_to_vec(&*self.tree, bincode::config::standard()).unwrap();
 
             let mut fd = std::fs::File::create(Path::new("data/tree.bin")).unwrap();
             fd.write_all(&slice).unwrap();
