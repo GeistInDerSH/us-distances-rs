@@ -2,11 +2,10 @@ use bincode::{Decode, Encode};
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::io::Write;
 use std::ops::Mul;
 use std::path::Path;
-use std::sync::{mpsc, Arc};
-use std::{fmt, thread};
 
 type DistanceKm = f32;
 type DistanceMi = f32;
@@ -101,7 +100,7 @@ impl TryFrom<&str> for Point {
     }
 }
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, Clone, Copy, Serialize, Deserialize)]
 pub struct Farthest {
     origin: Point,
     opposite: Point,
@@ -135,84 +134,21 @@ impl fmt::Display for Farthest {
 }
 
 pub struct Points {
-    points: Arc<Vec<Point>>,
-    tree: Arc<KdTree<f32, Point, [f32; 3]>>,
+    distances: Vec<Farthest>,
 }
 
 impl Points {
     #[inline]
-    pub fn new(points: Vec<Point>, tree: KdTree<f32, Point, [f32; 3]>) -> Self {
-        Self {
-            points: Arc::new(points),
-            tree: Arc::new(tree),
-        }
-    }
-
-    pub fn save(&self) {
-        {
-            let slice =
-                bincode::encode_to_vec(self.points.clone(), bincode::config::standard()).unwrap();
-
-            let mut fd = std::fs::File::create(Path::new("data/points.bin")).unwrap();
-            fd.write_all(&slice).unwrap();
-        }
-
-        {
-            let slice =
-                bincode::serde::encode_to_vec(&*self.tree, bincode::config::standard()).unwrap();
-
-            let mut fd = std::fs::File::create(Path::new("data/tree.bin")).unwrap();
-            fd.write_all(&slice).unwrap();
-        }
+    pub fn new(distances: Vec<Farthest>) -> Self {
+        Self { distances }
     }
 
     pub fn farthest(&self) -> Farthest {
-        let (sndr, rcvr) = mpsc::channel::<Farthest>();
-        let send = Arc::new(sndr);
-
-        let cores = match thread::available_parallelism() {
-            Ok(v) => v.get(),
-            Err(_) => 1,
-        };
-        let process_count = self.points.len() / cores;
-        let threads = (0..cores)
-            .map(|i| {
-                let points = self.points.clone();
-                let send = send.clone();
-                let tree = self.tree.clone();
-                thread::spawn(move || {
-                    let mut farthest = Farthest::default();
-                    for point in points.iter().skip(i * process_count).take(process_count) {
-                        let opposite = point.antipode();
-                        let o_3d = Point3D::from(&opposite);
-
-                        let n = tree.nearest(&o_3d.0, 1, &squared_euclidean);
-                        if n.is_err() {
-                            continue;
-                        }
-                        let closest = n.unwrap()[0].1;
-                        let dist = opposite.haversine_distance(closest);
-                        if dist > farthest.distance {
-                            farthest.distance = dist;
-                            farthest.origin = *point;
-                            farthest.opposite = opposite;
-                            farthest.closest = *closest;
-                        }
-                    }
-                    send.send(farthest).unwrap();
-                })
-            })
-            .collect::<Vec<_>>();
-        drop(send);
-
-        let farthest = rcvr
-            .into_iter()
+        *self
+            .distances
+            .iter()
             .max_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
-            .unwrap();
-        for thread in threads {
-            thread.join().unwrap();
-        }
-        farthest
+            .unwrap_or(&Farthest::default())
     }
 }
 
@@ -230,7 +166,7 @@ impl From<&Point> for Point3D {
 
 /// Attempt to load [Points] from the name of a file. This operation is buffered, but should
 /// consume the whole file before returning.
-pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
+pub fn try_load_points(file_name: &str) -> std::io::Result<Save> {
     let contents = std::fs::read_to_string(file_name)?;
     let mut kd = KdTree::with_capacity(3, 1 << 7);
     let mut points = Vec::with_capacity(12_033);
@@ -240,34 +176,48 @@ pub fn try_load_points(file_name: &str) -> std::io::Result<Points> {
         let point_3d = Point3D::from(&point);
         let _ = kd.add(point_3d.0, point);
     }
-    Ok(Points::new(points, kd))
+    Ok(Save::new(points, kd))
 }
 
-pub fn try_load_points_bin(file_name: &str) -> std::io::Result<Points> {
-    let contents = std::fs::read(file_name)?;
-    Ok(try_load_points_bin_data(contents.as_slice()))
-}
-
-pub fn try_load_points_bin_data(data: &[u8]) -> Points {
-    let points: Vec<Point> = bincode::decode_from_slice(data, bincode::config::standard())
-        .unwrap()
-        .0;
-
-    let mut kd = KdTree::with_capacity(3, 1 << 7);
-    for point in points.iter() {
-        let point_3d = Point3D::from(point);
-        let _ = kd.add(point_3d.0, *point);
-    }
-    Points::new(points, kd)
-}
-
-pub fn try_load_points_bin_data_tree(data: &[u8], tree: &[u8]) -> Points {
-    let points: Vec<Point> = bincode::decode_from_slice(data, bincode::config::standard())
-        .unwrap()
-        .0;
-    let kd: KdTree<f32, Point, [f32; 3]> =
-        bincode::serde::decode_from_slice(tree, bincode::config::standard())
+pub fn try_load_precalculated_distance_data(distance_data: &[u8]) -> Points {
+    let kd: Vec<Farthest> =
+        bincode::serde::decode_from_slice(distance_data, bincode::config::standard())
             .unwrap()
             .0;
-    Points::new(points, kd)
+    Points::new(kd)
+}
+
+pub struct Save {
+    points: Vec<Point>,
+    tree: KdTree<f32, Point, [f32; 3]>,
+}
+
+impl Save {
+    #[inline]
+    pub fn new(points: Vec<Point>, tree: KdTree<f32, Point, [f32; 3]>) -> Self {
+        Self { points, tree }
+    }
+
+    pub fn save(&self) {
+        let calculated = self
+            .points
+            .iter()
+            .map(|point| {
+                let opposite = point.antipode();
+                let p3d = Point3D::from(&opposite);
+                let nearest = self.tree.nearest(&p3d.0, 1, &squared_euclidean);
+                let (dist, closest) = nearest.unwrap()[0];
+                Farthest {
+                    origin: *point,
+                    opposite,
+                    closest: *closest,
+                    distance: dist,
+                }
+            })
+            .collect::<Vec<_>>();
+        let slice =
+            bincode::serde::encode_to_vec(&calculated, bincode::config::standard()).unwrap();
+        let mut fd = std::fs::File::create(Path::new("data/generated.bin")).unwrap();
+        fd.write_all(&slice).unwrap();
+    }
 }
