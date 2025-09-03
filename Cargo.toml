@@ -17,7 +17,6 @@ farthest = { path = "./farthest" }
 [build-dependencies]
 farthest = { path = "./farthest" }
 kdtree = { version = "0.7.0", features = ["serialize"] }
-serde = { version = "1.0.219", features = ["derive"] }
 bincode = { version = "2.0.1", features = ["serde"] }
 
 [[bench]]

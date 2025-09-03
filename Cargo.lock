@@ -512,7 +512,6 @@ dependencies = [
  "criterion",
  "farthest",
  "kdtree",
- "serde",
 ]
 
 [[package]]
