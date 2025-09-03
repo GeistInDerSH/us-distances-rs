@@ -7,14 +7,15 @@ edition = "2021"
 name = "run"
 path = "src/bin/run.rs"
 
-[[bin]]
-name = "generate"
-path = "src/bin/generate.rs"
-
 [dev-dependencies]
 criterion = "0.5.1"
 
 [dependencies]
+bincode = { version = "2.0.1", features = ["serde"] }
+farthest = { path = "./farthest" }
+
+[build-dependencies]
+farthest = { path = "./farthest" }
 kdtree = { version = "0.7.0", features = ["serialize"] }
 serde = { version = "1.0.219", features = ["derive"] }
 bincode = { version = "2.0.1", features = ["serde"] }
