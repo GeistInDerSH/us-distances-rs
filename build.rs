@@ -1,4 +1,4 @@
-use farthest::{Farthest, Point, Point3D};
+use farthest::{encoding_config, Farthest, Point, Point3D};
 use kdtree::distance::squared_euclidean;
 use kdtree::KdTree;
 use std::io;
@@ -24,17 +24,18 @@ impl Save {
                 let opposite = point.antipode();
                 let p3d = Point3D::from(&opposite);
                 let nearest = self.tree.nearest(&p3d.0, 1, &squared_euclidean);
-                let (dist, closest) = nearest.unwrap()[0];
+                let closest = nearest.unwrap()[0].1;
+                let distance = opposite.haversine_distance(closest);
                 Farthest {
                     origin: *point,
-                    opposite,
                     closest: *closest,
-                    distance: dist,
+                    opposite,
+                    distance,
                 }
             })
             .collect::<Vec<_>>();
         calculated.sort_by(|a, b| b.distance.partial_cmp(&a.distance).unwrap());
-        let slice = match bincode::serde::encode_to_vec(&calculated, bincode::config::standard()) {
+        let slice = match bincode::serde::encode_to_vec(&calculated, encoding_config()) {
             Ok(vec) => vec,
             Err(_) => Err(io::Error::from(io::ErrorKind::Other))?,
         };
